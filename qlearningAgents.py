@@ -63,13 +63,14 @@ class QLearningAgent(ReinforcementAgent):
           terminal state, you should return a value of 0.0.
         """
         "*** YOUR CODE HERE ***"
-        # if terminal, action = none
         qActions = []
         actions = self.getLegalActions(state)
-        # create tuples for the Q values and their associated actions
+        #terminal
+        if len(actions) == 0:
+            return 0.0
         for a in actions:
-            qActions.append(tuple((self.getQValue(state, a), a)))
-        # return the action w the highest Q
+            qActions.append(self.getQValue(state, a))
+        # return the highest Q value
         return max(qActions)
 
     def computeActionFromQValues(self, state):
@@ -80,9 +81,13 @@ class QLearningAgent(ReinforcementAgent):
         """
         "*** YOUR CODE HERE ***"
         qActions = []
+        # if terminal, no action
+        if len(self.getLegalActions(state)) == 0:
+            return None
         for a in self.getLegalActions(state):
+            # Q value, action tuple
             qActions.append(tuple((self.getQValue(state, a), a)))
-        # return the action w the highest Q
+        # return the action w the highest Q value
         return max(qActions,key=lambda item:item[0])[1]
 
 
@@ -102,8 +107,10 @@ class QLearningAgent(ReinforcementAgent):
         action = None
         "*** YOUR CODE HERE ***"
         for a in legalActions:
+            # with probability epsilon, pick a random action
             if util.flipCoin(self.epsilon):
                 return random.choice(legalActions)
+            # otherwise, pick the best action from our Q values
             else:
                 action = self.computeActionFromQValues(state)
         return action
@@ -119,8 +126,12 @@ class QLearningAgent(ReinforcementAgent):
         """
         "*** YOUR CODE HERE ***"
         sample = (1-self.alpha) * self.values[(state, action)]
-        sample += self.alpha * (reward + (self.discount * self.computeActionFromQValues(nextState, action)))
+        discountedVal = (self.discount * self.computeValueFromQValues(nextState))
+
+        sample += self.alpha * (reward + discountedVal)
         self.values[(state, action)] = sample
+
+
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
 
@@ -182,14 +193,30 @@ class ApproximateQAgent(PacmanQAgent):
           where * is the dotProduct operator
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # return the sum of weights * features
+        sum = 0
+        # get our counter of features
+        features = self.featExtractor.getFeatures(state, action)
+        # iterate through each feature
+        for feature in features:
+            # sum the weights of a feature * the value of the feature
+            sum += self.weights[feature] * features[feature]
+        return sum
 
     def update(self, state, action, nextState, reward):
         """
            Should update your weights based on transition
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # difference = (reward + discount * (value of max Qaction of s') )- Q(s,a)
+        difference = (reward + (self.discount * self.computeValueFromQValues(nextState)))
+        difference -= self.getQValue(state, action)
+
+        # weight[feature] = weight[feature] + alpha * diff * feature(s,a)
+        features = self.featExtractor.getFeatures(state, action)
+        for feature in features:
+            self.weights[feature] = self.weights[feature] + (self.alpha * difference * features[feature])
+
 
     def final(self, state):
         "Called at the end of each game."
